@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>pl.edu.pk</groupId>
-    <artifactId>AccelApp</artifactId>
+    <artifactId>AccelApp_backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>AccelApp</name>
     <description>AccelApp</description>
