@@ -17,7 +17,7 @@ import pl.edu.pk.accelapp.service.UserService;
 import java.util.Map;
 
 @RestController
-@RequestMapping
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final UserService userService;
