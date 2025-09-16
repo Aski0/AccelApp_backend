@@ -21,6 +21,6 @@ public class UploadedFileService {
     public List<UploadedFile> getFilesForUser(String email) {
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
-        return uploadedFileRepository.findByUserId(user.getId());
+        return uploadedFileRepository.findByUser(user);
     }
 }

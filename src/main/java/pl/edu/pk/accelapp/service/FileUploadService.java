@@ -1,74 +1,100 @@
 package pl.edu.pk.accelapp.service;
 
-import jakarta.persistence.EntityNotFoundException;
+import org.postgresql.copy.CopyManager;
+import org.postgresql.core.BaseConnection;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import pl.edu.pk.accelapp.model.Measurement;
 import pl.edu.pk.accelapp.model.UploadedFile;
 import pl.edu.pk.accelapp.model.User;
 import pl.edu.pk.accelapp.repository.UploadedFileRepository;
-//import javax.persistence.EntityNotFoundException;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import javax.sql.DataSource;
+import java.io.*;
+import java.time.LocalDateTime;
 
 @Service
 public class FileUploadService {
+
     private final UploadedFileRepository uploadedFileRepository;
-    private final MeasurementService measurementService;
-    private final UserService userService;
+    private final DataSource dataSource;
 
     public FileUploadService(UploadedFileRepository uploadedFileRepository,
-                             MeasurementService measurementService, UserService userService) {
+                             DataSource dataSource) {
         this.uploadedFileRepository = uploadedFileRepository;
-        this.measurementService = measurementService;
-        this.userService = userService;
+        this.dataSource = dataSource;
     }
 
-    public UploadedFile saveFile(MultipartFile file, User user) throws IOException {
+    /**
+     * Zapisuje plik i wykonuje bulk load do PostgreSQL
+     */
+    public void saveFile(MultipartFile multipartFile, User user) throws Exception {
+        // 1️⃣ Zapisz metadane pliku w bazie
         UploadedFile uploadedFile = new UploadedFile();
-        uploadedFile.setFileName(file.getOriginalFilename());
+        uploadedFile.setFileName(multipartFile.getOriginalFilename());
+        uploadedFile.setUploadedAt(LocalDateTime.now());
         uploadedFile.setUser(user);
         uploadedFile = uploadedFileRepository.save(uploadedFile);
 
-        parseFileAndSaveMeasurements(file, uploadedFile);
-
-        return uploadedFile;
+        // 2️⃣ Bulk import pliku do tabeli measurement
+        bulkInsertMeasurements(multipartFile, uploadedFile.getId());
     }
 
-    private void parseFileAndSaveMeasurements(MultipartFile file, UploadedFile uploadedFile) throws IOException {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+    /**
+     * Bulk load CSV do PostgreSQL z konwersją tabów na przecinki i przecinka dziesiętnego na kropkę
+     */
+    private void bulkInsertMeasurements(MultipartFile multipartFile, Long uploadedFileId) throws Exception {
+        // Zapisz plik tymczasowo
+        File tempInput = File.createTempFile("upload-", ".txt");
+        try (FileOutputStream fos = new FileOutputStream(tempInput)) {
+            fos.write(multipartFile.getBytes());
+        }
+
+        // Utwórz nowy plik CSV zgodny z PostgreSQL
+        File tempCsv = File.createTempFile("upload-csv-", ".csv");
+        try (BufferedReader br = new BufferedReader(new FileReader(tempInput));
+             FileWriter fw = new FileWriter(tempCsv)) {
+
+            // Nagłówek w formacie PostgreSQL
+            fw.write("time,ox,oy,oz,ch1,ch2,ch3,uploaded_file_id\n");
 
             String line;
             boolean firstLine = true;
             while ((line = br.readLine()) != null) {
-                if (firstLine) { // pomijamy nagłówek
+                if (firstLine) { // pomiń stary nagłówek
                     firstLine = false;
                     continue;
                 }
 
-                String[] values = line.split("\t");
-                if (values.length < 7) continue;
+                // Zamiana tabów na przecinek i przecinka dziesiętnego na kropkę
+                String[] cols = line.split("\t");
+                if (cols.length < 7) continue;
 
-                Measurement m = new Measurement();
-                m.setTime(Double.parseDouble(values[0].replace(",", ".")));
-                m.setOx(Double.parseDouble(values[1].replace(",", ".")));
-                m.setOy(Double.parseDouble(values[2].replace(",", ".")));
-                m.setOz(Double.parseDouble(values[3].replace(",", ".")));
-                m.setCh1(Double.parseDouble(values[4].replace(",", ".")));
-                m.setCh2(Double.parseDouble(values[5].replace(",", ".")));
-                m.setCh3(Double.parseDouble(values[6].replace(",", ".")));
-                m.setUploadedFile(uploadedFile);
-
-                measurementService.saveMeasurement(m);
+                fw.write(
+                        cols[0].replace(",", ".") + "," +
+                                cols[1].replace(",", ".") + "," +
+                                cols[2].replace(",", ".") + "," +
+                                cols[3].replace(",", ".") + "," +
+                                cols[4].replace(",", ".") + "," +
+                                cols[5].replace(",", ".") + "," +
+                                cols[6].replace(",", ".") + "," +
+                                uploadedFileId + "\n"
+                );
             }
         }
-    }
 
-    public UploadedFile saveFileForUser(MultipartFile file, Long userId) throws IOException {
-        User user = userService.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Nie znaleziono użytkownika o ID: " + userId));
-        return saveFile(file, user);
+        // COPY do PostgreSQL
+        String sql = "COPY measurements(time, ox, oy, oz, ch1, ch2, ch3, uploaded_file_id) " +
+                "FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ',')";
+
+        try (var connection = dataSource.getConnection();
+             var reader = new FileReader(tempCsv)) {
+
+            CopyManager copyManager = new CopyManager(connection.unwrap(BaseConnection.class));
+            copyManager.copyIn(sql, reader);
+        }
+
+        // Usuń pliki tymczasowe
+        tempInput.delete();
+        tempCsv.delete();
     }
 }
