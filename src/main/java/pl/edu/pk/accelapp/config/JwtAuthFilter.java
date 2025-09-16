@@ -30,7 +30,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     @NotNull HttpServletResponse response,
                                     @NotNull FilterChain filterChain) throws ServletException, IOException {
 
+
+        //String authHeader = request.getHeader("Authorization");
+
+        System.out.println("======================================================");
+        System.out.println(">>> Otrzymano żądanie do: " + request.getRequestURI());
         String authHeader = request.getHeader("Authorization");
+        System.out.println(">>> Nagłówek 'Authorization': " + authHeader);
+        System.out.println("======================================================");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
@@ -41,6 +48,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                     if (jwtUtil.validateToken(token)) {
+                        // =====================================================================
+                        // === DODAJ TĘ LINIĘ DO DEBUGOWANIA ===
+                        System.out.println(">>> Uprawnienia załadowanego użytkownika (Authorities): " + userDetails.getAuthorities());
+                        // =====================================================================
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities()
                         );

@@ -1,6 +1,7 @@
 package pl.edu.pk.accelapp.service;
 
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -13,6 +14,9 @@ import pl.edu.pk.accelapp.repository.UserRepository;
 import pl.edu.pk.accelapp.security.JwtUtil;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Optional;
+
 @Service
 public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
@@ -40,6 +44,14 @@ public class UserService implements UserDetailsService {
         }
         return jwtUtil.generateToken(user);
     }
+
+    public Optional<User> findById(Long userId) {
+        return userRepository.findById(userId);
+    }
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
@@ -48,7 +60,8 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
-                new ArrayList<>()
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                //new ArrayList<>()
         );
     }
 }

@@ -1,0 +1,33 @@
+package pl.edu.pk.accelapp.model;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
+@Table(name = "uploaded_files")
+public class UploadedFile {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String filename;
+    private LocalDateTime uploadedAt;
+
+    @ManyToOne
+    @JoinColumn(name="user_id")
+    private User user;
+
+    @OneToMany(mappedBy = "uploadedFile",cascade = CascadeType.ALL)
+    private List<Measurement> measurement = new ArrayList<>();
+
+    public void setFileName(String filename) {
+        this.filename = filename;
+    }
+}
