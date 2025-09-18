@@ -19,12 +19,13 @@ public class UploadedFile {
     private Long id;
     private String filename;
     private LocalDateTime uploadedAt;
+    private Long duration;
 
     @ManyToOne
     @JoinColumn(name="user_id")
     private User user;
 
-    @OneToMany(mappedBy = "uploadedFile",cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "uploadedFile",cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Measurement> measurement = new ArrayList<>();
 
     public void setFileName(String filename) {

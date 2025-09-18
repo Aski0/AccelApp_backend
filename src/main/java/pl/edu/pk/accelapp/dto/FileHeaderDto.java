@@ -1,8 +1,13 @@
 package pl.edu.pk.accelapp.dto;
 
+import lombok.Getter;
+import pl.edu.pk.accelapp.repository.MeasurementRepository;
+
 import java.time.LocalDateTime;
 
+@Getter
 public class FileHeaderDto {
+    // gettery
     private Long id;
     private String filename;
     private LocalDateTime uploadedAt;
@@ -15,9 +20,4 @@ public class FileHeaderDto {
         this.measurementCount = measurementCount;
     }
 
-    // gettery
-    public Long getId() { return id; }
-    public String getFilename() { return filename; }
-    public LocalDateTime getUploadedAt() { return uploadedAt; }
-    public long getMeasurementCount() { return measurementCount; }
 }
