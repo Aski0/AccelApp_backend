@@ -22,7 +22,7 @@ public class FileUploadController {
         this.userService = userService; // ✅ zapisz
     }
 
-    @PostMapping("/upload")
+    @PostMapping("/files/upload")
     public ResponseEntity<String> uploadFile(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {

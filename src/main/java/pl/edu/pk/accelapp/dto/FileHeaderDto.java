@@ -1,11 +1,13 @@
 package pl.edu.pk.accelapp.dto;
 
 import lombok.Getter;
+import lombok.Setter;
 import pl.edu.pk.accelapp.repository.MeasurementRepository;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 public class FileHeaderDto {
     // gettery
     private Long id;
