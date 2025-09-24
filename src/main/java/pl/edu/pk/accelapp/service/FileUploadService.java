@@ -30,7 +30,7 @@ public class FileUploadService {
     public void saveFile(MultipartFile multipartFile, User user) throws Exception {
         // 1️⃣ Zapisz metadane pliku w bazie
         UploadedFile uploadedFile = new UploadedFile();
-        uploadedFile.setFileName(multipartFile.getOriginalFilename());
+        uploadedFile.setFilename(multipartFile.getOriginalFilename());
         uploadedFile.setUploadedAt(LocalDateTime.now());
         uploadedFile.setUser(user);
         uploadedFile = uploadedFileRepository.save(uploadedFile);

@@ -1,11 +1,10 @@
 package pl.edu.pk.accelapp.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Importuj!
-import org.springframework.web.multipart.MultipartFile;
 import pl.edu.pk.accelapp.dto.TSTFileDto;
 import pl.edu.pk.accelapp.model.TSTFile;
 import pl.edu.pk.accelapp.model.UploadedFile;
@@ -13,9 +12,6 @@ import pl.edu.pk.accelapp.model.User;
 import pl.edu.pk.accelapp.repository.TSTFileRepository;
 import pl.edu.pk.accelapp.repository.UploadedFileRepository;
 import pl.edu.pk.accelapp.repository.UserRepository;
-
-import java.io.IOException;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,7 +32,8 @@ public class TSTFileService {
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika"));
     }
 
-    public TSTFile saveTSTFileFromJson(Long fileId, TSTFileDto dto) {
+    @Transactional
+    public TSTFileDto saveTSTFileFromJson(Long fileId, TSTFileDto dto) {
         UploadedFile uploadedFile = uploadedFileRepository.findById(fileId)
                 .orElseThrow(() -> new RuntimeException("Uploaded file not found"));
 
@@ -46,29 +43,32 @@ public class TSTFileService {
         }
 
         TSTFile tst = new TSTFile();
-        tst.setTstFilename(dto.getFilename());
+        tst.setFilename(dto.getFilename());
         tst.setContent(dto.getContent());
         tst.setUploadedFile(uploadedFile);
 
-        return tstFileRepository.save(tst);
+        TSTFile saved = tstFileRepository.save(tst);
+
+        return new TSTFileDto(saved.getFilename(), saved.getContent());
     }
 
+    @Transactional
     public TSTFileDto getByUploadedFileId(Long fileId) {
-        // 1. Znajdź plik nadrzędny
         UploadedFile uploadedFile = uploadedFileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new RuntimeException("File not found with id: " + fileId));
 
-        // 2. Sprawdź, czy zalogowany użytkownik jest właścicielem pliku
         User currentUser = getCurrentUser();
         if (!uploadedFile.getUser().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Access denied");
         }
 
-        // 3. Znajdź właściwy plik TST na podstawie relacji
-        TSTFile tstFile = tstFileRepository.findByUploadedFileId(fileId)
-                .orElseThrow(() -> new RuntimeException("TST file content not found"));
+        TSTFile tstFileEntity = tstFileRepository.findByUploadedFileId(fileId)
+                .orElseThrow(() -> new RuntimeException("TST file content not found for file id: " + fileId));
 
-        // 4. Zmapuj encję na DTO i zwróć
-        return new TSTFileDto(tstFile.getTstFilename(), tstFile.getContent());
+        // DTO zwraca dane, nie encję -> unikamy problemów z LOB
+        return new TSTFileDto(
+                tstFileEntity.getFilename(),
+                tstFileEntity.getContent()
+        );
     }
 }

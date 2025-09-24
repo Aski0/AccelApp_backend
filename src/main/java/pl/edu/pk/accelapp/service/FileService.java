@@ -27,7 +27,7 @@ public class FileService {
             throw new RuntimeException("Access denied");
         }
 
-        file.setFileName(newName);
+        file.setFilename(newName);
         return uploadedFileRepository.save(file);
     }
 

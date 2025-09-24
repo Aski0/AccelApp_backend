@@ -14,12 +14,16 @@ public class TSTFile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String tstFilename;
+    @Column(name = "tst_filename")
+    private String filename;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
-    @OneToOne
-    @JoinColumn(name = "uploaded_file_id", referencedColumnName = "id", unique = true)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uploaded_file_id")
     private UploadedFile uploadedFile;
 }
+
