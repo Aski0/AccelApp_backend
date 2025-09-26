@@ -18,13 +18,11 @@ public class FFTService {
 
     private final MeasurementRepository measurementRepository;
 
-    private static final int CHUNK_SIZE = 1024; // liczba próbek na porcję
-    private static final double SAMPLE_RATE_FAST = 4800.0; // Hz
-    private static final double SAMPLE_RATE_SLOW = 10.0;   // Hz
+    private static final int CHUNK_SIZE = 1024;
+    private static final double SAMPLE_RATE_FAST = 4800.0;
+    private static final double SAMPLE_RATE_SLOW = 10.0;
 
-    /**
-     * Oblicza FFT dla całego pliku w porcjach
-     */
+
     @Transactional(readOnly = true)
     public List<FFTPointDto> computeFFT(Long fileId, String channel) {
         List<FFTPointDto> fftResult = new ArrayList<>();
@@ -41,8 +39,6 @@ public class FFTService {
                     buffer.clear();
                 }
             });
-
-            // ostatnia porcja
             if (!buffer.isEmpty()) {
                 fftResult.addAll(computeFFTChunk(buffer, channel));
             }
@@ -51,9 +47,6 @@ public class FFTService {
         return fftResult;
     }
 
-    /**
-     * Zwraca wartość z pomiaru dla wybranego kanału
-     */
     private double getChannelValue(Measurement m, String channel) {
         return switch (channel.toLowerCase()) {
             case "ox" -> m.getOx();
@@ -66,9 +59,6 @@ public class FFTService {
         };
     }
 
-    /**
-     * Oblicza FFT dla jednej porcji próbek
-     */
     private List<FFTPointDto> computeFFTChunk(List<Double> chunk, String channel) {
         int n = chunk.size();
         double[] data = new double[n];

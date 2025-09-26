@@ -15,11 +15,11 @@ import pl.edu.pk.accelapp.service.UserService;
 @RequestMapping("/api")
 public class FileUploadController {
     private final FileUploadService fileUploadService;
-    private final UserService userService; // ✅ dodaj
+    private final UserService userService;
 
     public FileUploadController(FileUploadService fileUploadService, UserService userService) {
         this.fileUploadService = fileUploadService;
-        this.userService = userService; // ✅ zapisz
+        this.userService = userService;
     }
 
     @PostMapping("/files/upload")
@@ -55,12 +55,11 @@ public class FileUploadController {
             User user = userService.findByEmail(email)
                     .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
 
-            // Mapowanie do DTO
             var files = user.getUploadedFiles().stream().map(f -> new FileHeaderDto(
                     f.getId(),
                     f.getFilename(),
                     f.getUploadedAt(),
-                    f.getMeasurement().size() // liczba próbek
+                    f.getMeasurement().size()
             )).toList();
 
             return ResponseEntity.ok(files);

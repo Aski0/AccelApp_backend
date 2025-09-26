@@ -45,9 +45,8 @@ public class FileService {
         uploadedFileRepository.delete(file);
     }
 
-
-        public Optional<UploadedFile> getFileById(Long id) {
-            return uploadedFileRepository.findById(id);
-        }
+    public Optional<UploadedFile> getFileById(Long id) {
+        return uploadedFileRepository.findById(id);
+    }
 
 }

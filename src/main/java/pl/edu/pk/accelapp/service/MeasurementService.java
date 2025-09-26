@@ -26,4 +26,5 @@ public class MeasurementService {
     public Page<Measurement> getMeasurementsByFilePaged(Long fileId, Pageable pageable) {
         return measurementRepository.findByUploadedFileId(fileId, pageable);
     }
+
 }

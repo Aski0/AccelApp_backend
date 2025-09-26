@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class FileHeaderDto {
-    // gettery
     private Long id;
     private String filename;
     private LocalDateTime uploadedAt;

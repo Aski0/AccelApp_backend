@@ -65,7 +65,6 @@ public class TSTFileService {
         TSTFile tstFileEntity = tstFileRepository.findByUploadedFileId(fileId)
                 .orElseThrow(() -> new RuntimeException("TST file content not found for file id: " + fileId));
 
-        // DTO zwraca dane, nie encję -> unikamy problemów z LOB
         return new TSTFileDto(
                 tstFileEntity.getFilename(),
                 tstFileEntity.getContent()

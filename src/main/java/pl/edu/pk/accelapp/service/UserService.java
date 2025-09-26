@@ -13,7 +13,6 @@ import pl.edu.pk.accelapp.model.User;
 import pl.edu.pk.accelapp.repository.UserRepository;
 import pl.edu.pk.accelapp.security.JwtUtil;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -61,7 +60,6 @@ public class UserService implements UserDetailsService {
                 user.getEmail(),
                 user.getPassword(),
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                //new ArrayList<>()
         );
     }
 

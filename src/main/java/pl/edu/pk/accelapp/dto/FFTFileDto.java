@@ -20,7 +20,6 @@ public class FFTFileDto {
         this.ch3 = ch3;
     }
 
-    // Gettery
     public List<FFTPointDto> getOx() { return ox; }
     public List<FFTPointDto> getOy() { return oy; }
     public List<FFTPointDto> getOz() { return oz; }

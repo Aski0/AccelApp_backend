@@ -26,7 +26,6 @@ public class FFTController {
             @PathVariable String channel,
             @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal
     ) {
-        // Sprawdzenie, czy użytkownik ma dostęp do pliku
         UploadedFile file = uploadedFileRepository.findById(fileId)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono pliku"));
 

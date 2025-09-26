@@ -5,17 +5,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import pl.edu.pk.accelapp.dto.MeasurementDto;
-import pl.edu.pk.accelapp.model.Measurement;
 import pl.edu.pk.accelapp.service.MeasurementService;
 
 @RestController
-@RequestMapping("/api/measurements")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class MeasurementController {
 
     private final MeasurementService measurementService;
 
-    @GetMapping("/{fileId}")
+    @GetMapping("/measurements/{fileId}")
     public Page<MeasurementDto> getMeasurementsByFile(
             @PathVariable Long fileId,
             @RequestParam(defaultValue = "0") int page,
