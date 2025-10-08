@@ -57,27 +57,28 @@ public class MeasurementOverviewService {
             }
 
             double mean = sum / blockSize;
+            double timeSec = start / 9600.0;
 
-            blocks.add(new OverviewBlock(start, min, max, mean));
+            blocks.add(new OverviewBlock(timeSec, min, max, mean));
         }
 
         return blocks;
     }
 
     public static class OverviewBlock {
-        private int startIndex;
+        private double timeSec;
         private double min;
         private double max;
         private double mean;
 
-        public OverviewBlock(int startIndex, double min, double max, double mean) {
-            this.startIndex = startIndex;
+        public OverviewBlock(double timeSec, double min, double max, double mean) {
+            this.timeSec = timeSec;
             this.min = min;
             this.max = max;
             this.mean = mean;
         }
 
-        public int getStartIndex() { return startIndex; }
+        public double getTimeSec() { return timeSec; }
         public double getMin() { return min; }
         public double getMax() { return max; }
         public double getMean() { return mean; }
