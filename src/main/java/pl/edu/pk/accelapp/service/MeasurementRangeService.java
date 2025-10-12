@@ -1,11 +1,14 @@
 package pl.edu.pk.accelapp.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import pl.edu.pk.accelapp.model.Measurement;
+import pl.edu.pk.accelapp.model.MeasurementRange;
 import pl.edu.pk.accelapp.model.UploadedFile;
 import pl.edu.pk.accelapp.model.User;
+import pl.edu.pk.accelapp.repository.MeasurementRangeRepository;
 import pl.edu.pk.accelapp.repository.MeasurementRepository;
 import pl.edu.pk.accelapp.repository.UploadedFileRepository;
 import pl.edu.pk.accelapp.repository.UserRepository;
@@ -39,5 +42,11 @@ public class MeasurementRangeService {
         return measurementRepository.findByUploadedFileId(fileId).stream()
                 .filter(m -> m.getTime() >= startSec && m.getTime() <= endSec)
                 .toList();
+    }
+    @Autowired
+    private final MeasurementRangeRepository measurementRangeRepository;
+
+    public List<MeasurementRange> getRangesForFile(Long fileId) {
+        return measurementRangeRepository.findByUploadedFileId(fileId);
     }
 }

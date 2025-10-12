@@ -1,5 +1,6 @@
 package pl.edu.pk.accelapp.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,5 +32,8 @@ public class UploadedFile {
     @OneToMany(mappedBy = "uploadedFile", fetch = FetchType.LAZY)
     private List<Measurement> measurement = new ArrayList<>();
 
+    @OneToMany(mappedBy = "uploadedFile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<MeasurementRange> measurementRanges = new ArrayList<>();
 }
 

@@ -5,6 +5,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import pl.edu.pk.accelapp.dto.MeasurementDto;
 import pl.edu.pk.accelapp.model.Measurement;
+import pl.edu.pk.accelapp.model.MeasurementRange;
 import pl.edu.pk.accelapp.service.MeasurementRangeService;
 
 import java.util.List;
