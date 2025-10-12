@@ -1,7 +1,6 @@
 package pl.edu.pk.accelapp.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import pl.edu.pk.accelapp.model.Measurement;
@@ -21,32 +20,69 @@ public class MeasurementRangeService {
 
     private final MeasurementRepository measurementRepository;
     private final UploadedFileRepository uploadedFileRepository;
+    private final MeasurementRangeRepository rangeRepository;
     private final UserRepository userRepository;
 
+    // 🔒 pomocnicza metoda do autoryzacji
     private User getCurrentUser(Authentication authentication) {
         String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    // 📊 Pobieranie pomiarów w zakresie
     public List<Measurement> getMeasurementsInRange(Long fileId, Authentication authentication, double startSec, double endSec) {
         UploadedFile file = uploadedFileRepository.findById(fileId)
                 .orElseThrow(() -> new RuntimeException("File not found"));
 
-        User currentUser = getCurrentUser(authentication);
-        if (!file.getUser().getId().equals(currentUser.getId())) {
+        User user = getCurrentUser(authentication);
+        if (!file.getUser().getId().equals(user.getId()))
             throw new RuntimeException("Access denied: file does not belong to user");
-        }
 
-        // Pobieramy wszystkie pomiary i filtrujemy po czasie
         return measurementRepository.findByUploadedFileId(fileId).stream()
                 .filter(m -> m.getTime() >= startSec && m.getTime() <= endSec)
                 .toList();
     }
-    @Autowired
-    private final MeasurementRangeRepository measurementRangeRepository;
 
-    public List<MeasurementRange> getRangesForFile(Long fileId) {
-        return measurementRangeRepository.findByUploadedFileId(fileId);
+    // 📋 Lista zakresów dla pliku
+    public List<MeasurementRange> getRangesForFile(Long fileId, Authentication authentication) {
+        UploadedFile file = uploadedFileRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("File not found"));
+
+        User user = getCurrentUser(authentication);
+        if (!file.getUser().getId().equals(user.getId()))
+            throw new RuntimeException("Access denied: file does not belong to user");
+
+        return rangeRepository.findByUploadedFileId(fileId);
+    }
+
+    // 💾 Zapis nowego zakresu
+    public MeasurementRange saveRange(Long fileId, double start, double end, String chartPath, Authentication authentication) {
+        UploadedFile file = uploadedFileRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("File not found"));
+
+        User user = getCurrentUser(authentication);
+        if (!file.getUser().getId().equals(user.getId()))
+            throw new RuntimeException("Access denied: file does not belong to user");
+
+        MeasurementRange range = new MeasurementRange();
+        range.setUploadedFile(file);
+        range.setStart(start);
+        range.setEnd(end);
+        range.setChartImagePath(chartPath);
+
+        return rangeRepository.save(range);
+    }
+
+    // ❌ Usuń istniejący zakres
+    public void deleteRange(Long rangeId, Authentication authentication) {
+        MeasurementRange range = rangeRepository.findById(rangeId)
+                .orElseThrow(() -> new RuntimeException("Range not found"));
+
+        User user = getCurrentUser(authentication);
+        if (!range.getUploadedFile().getUser().getId().equals(user.getId()))
+            throw new RuntimeException("Access denied: range does not belong to user");
+
+        rangeRepository.delete(range);
     }
 }
