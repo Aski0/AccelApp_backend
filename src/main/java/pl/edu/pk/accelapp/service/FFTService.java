@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pl.edu.pk.accelapp.dto.FFTPointDto;
+import pl.edu.pk.accelapp.dto.FFTResultDto;
 import pl.edu.pk.accelapp.model.Measurement;
 import pl.edu.pk.accelapp.repository.MeasurementRepository;
 
@@ -22,10 +22,9 @@ public class FFTService {
     private static final double SAMPLE_RATE_FAST = 4800.0;
     private static final double SAMPLE_RATE_SLOW = 10.0;
 
-
     @Transactional(readOnly = true)
-    public List<FFTPointDto> computeFFT(Long fileId, String channel) {
-        List<FFTPointDto> fftResult = new ArrayList<>();
+    public List<FFTResultDto.Point> computeFFT(Long fileId, String channel) {
+        List<FFTResultDto.Point> fftResult = new ArrayList<>();
 
         try (Stream<Measurement> stream = measurementRepository.streamByUploadedFileId(fileId)) {
             List<Double> buffer = new ArrayList<>(CHUNK_SIZE);
@@ -39,6 +38,7 @@ public class FFTService {
                     buffer.clear();
                 }
             });
+
             if (!buffer.isEmpty()) {
                 fftResult.addAll(computeFFTChunk(buffer, channel));
             }
@@ -59,7 +59,7 @@ public class FFTService {
         };
     }
 
-    private List<FFTPointDto> computeFFTChunk(List<Double> chunk, String channel) {
+    private List<FFTResultDto.Point> computeFFTChunk(List<Double> chunk, String channel) {
         int n = chunk.size();
         double[] data = new double[n];
         for (int i = 0; i < n; i++) data[i] = chunk.get(i);
@@ -67,16 +67,16 @@ public class FFTService {
         DoubleFFT_1D fft = new DoubleFFT_1D(n);
         fft.realForward(data);
 
-        List<FFTPointDto> result = new ArrayList<>(n / 2);
-        double sampleRate = channel.equalsIgnoreCase("ch1") ||
-                channel.equalsIgnoreCase("ch2") ||
-                channel.equalsIgnoreCase("ch3")
-                ? SAMPLE_RATE_FAST : SAMPLE_RATE_SLOW;
+        List<FFTResultDto.Point> result = new ArrayList<>(n / 2);
+        double sampleRate = switch (channel.toLowerCase()) {
+            case "ch1", "ch2", "ch3" -> SAMPLE_RATE_FAST;
+            default -> SAMPLE_RATE_SLOW;
+        };
 
         for (int i = 0; i < n / 2; i++) {
             double freq = i * sampleRate / n;
             double magnitude = Math.abs(data[i]);
-            result.add(new FFTPointDto(freq, magnitude));
+            result.add(new FFTResultDto.Point(freq, magnitude));
         }
 
         return result;
