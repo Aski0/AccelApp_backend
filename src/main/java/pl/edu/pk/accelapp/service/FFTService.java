@@ -1,15 +1,14 @@
 package pl.edu.pk.accelapp.service;
 
-import lombok.RequiredArgsConstructor;
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.edu.pk.accelapp.dto.FFTResultDto;
 import pl.edu.pk.accelapp.model.Measurement;
 import pl.edu.pk.accelapp.repository.MeasurementRepository;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Service
@@ -18,33 +17,35 @@ public class FFTService {
 
     private final MeasurementRepository measurementRepository;
 
-    private static final int CHUNK_SIZE = 1024;
+    private static final int WINDOW_SIZE = 8192;          // rozmiar okna FFT (np. 8k próbek)
+    private static final double OVERLAP = 0.5;            // 50% nakładania
     private static final double SAMPLE_RATE_FAST = 4800.0;
     private static final double SAMPLE_RATE_SLOW = 10.0;
+    private static final int MAX_POINTS = 5000;
 
     @Transactional(readOnly = true)
     public List<FFTResultDto.Point> computeFFT(Long fileId, String channel) {
-        List<FFTResultDto.Point> fftResult = new ArrayList<>();
+        List<Double> signal = new ArrayList<>();
 
+        // 🔹 wczytanie danych z bazy
         try (Stream<Measurement> stream = measurementRepository.streamByUploadedFileId(fileId)) {
-            List<Double> buffer = new ArrayList<>(CHUNK_SIZE);
-
-            stream.forEach(m -> {
-                double value = getChannelValue(m, channel);
-                buffer.add(value);
-
-                if (buffer.size() == CHUNK_SIZE) {
-                    fftResult.addAll(computeFFTChunk(buffer, channel));
-                    buffer.clear();
-                }
-            });
-
-            if (!buffer.isEmpty()) {
-                fftResult.addAll(computeFFTChunk(buffer, channel));
-            }
+            stream.forEach(m -> signal.add(getChannelValue(m, channel)));
         }
 
-        return fftResult;
+        if (signal.size() < WINDOW_SIZE) {
+            return Collections.emptyList();
+        }
+
+        double sampleRate = switch (channel.toLowerCase()) {
+            case "ch1", "ch2", "ch3" -> SAMPLE_RATE_FAST;
+            default -> SAMPLE_RATE_SLOW;
+        };
+
+        // 🔹 obliczenie średniego widma (Catman-style)
+        List<FFTResultDto.Point> averaged = computeAveragedFFT(signal, sampleRate);
+
+        // 🔹 redukcja ilości punktów do wykresu
+        return reducePoints(averaged);
     }
 
     private double getChannelValue(Measurement m, String channel) {
@@ -55,30 +56,82 @@ public class FFTService {
             case "ch1" -> m.getCh1();
             case "ch2" -> m.getCh2();
             case "ch3" -> m.getCh3();
-            default -> 0;
+            default -> 0.0;
         };
     }
 
-    private List<FFTResultDto.Point> computeFFTChunk(List<Double> chunk, String channel) {
-        int n = chunk.size();
-        double[] data = new double[n];
-        for (int i = 0; i < n; i++) data[i] = chunk.get(i);
+    /**
+     * Catman Easy AP style FFT averaging (STFT z nakładaniem + okno Hanninga)
+     */
+    private List<FFTResultDto.Point> computeAveragedFFT(List<Double> signal, double sampleRate) {
+        int hopSize = (int) (WINDOW_SIZE * (1.0 - OVERLAP)); // krok przesuwania okna
+        int numWindows = (signal.size() - WINDOW_SIZE) / hopSize;
 
-        DoubleFFT_1D fft = new DoubleFFT_1D(n);
-        fft.realForward(data);
+        double[] window = hanningWindow(WINDOW_SIZE);
+        double[] avgMagnitude = new double[WINDOW_SIZE / 2];
 
-        List<FFTResultDto.Point> result = new ArrayList<>(n / 2);
-        double sampleRate = switch (channel.toLowerCase()) {
-            case "ch1", "ch2", "ch3" -> SAMPLE_RATE_FAST;
-            default -> SAMPLE_RATE_SLOW;
-        };
+        DoubleFFT_1D fft = new DoubleFFT_1D(WINDOW_SIZE);
+        double[] buffer = new double[WINDOW_SIZE];
 
-        for (int i = 0; i < n / 2; i++) {
-            double freq = i * sampleRate / n;
-            double magnitude = Math.abs(data[i]);
-            result.add(new FFTResultDto.Point(freq, magnitude));
+        // 🔹 przechodzimy po oknach
+        for (int w = 0; w < numWindows; w++) {
+            int offset = w * hopSize;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                buffer[i] = signal.get(offset + i) * window[i];
+            }
+
+            fft.realForward(buffer);
+
+            for (int i = 0; i < WINDOW_SIZE / 2; i++) {
+                double re, im;
+                if (i == 0) {
+                    re = buffer[0];
+                    im = 0.0;
+                } else {
+                    re = buffer[2 * i];
+                    im = buffer[2 * i + 1];
+                }
+                double mag = Math.sqrt(re * re + im * im);
+                avgMagnitude[i] += mag;
+            }
+        }
+
+        // 🔹 uśrednienie po wszystkich oknach
+        for (int i = 0; i < avgMagnitude.length; i++) {
+            avgMagnitude[i] /= numWindows;
+        }
+
+        // 🔹 tworzenie listy punktów
+        List<FFTResultDto.Point> result = new ArrayList<>(WINDOW_SIZE / 2);
+        for (int i = 0; i < WINDOW_SIZE / 2; i++) {
+            double freq = i * sampleRate / WINDOW_SIZE;
+            result.add(new FFTResultDto.Point(freq, avgMagnitude[i]));
         }
 
         return result;
+    }
+
+    /**
+     * Okno Hanninga (tłumienie przecieków widmowych)
+     */
+    private double[] hanningWindow(int size) {
+        double[] w = new double[size];
+        for (int i = 0; i < size; i++) {
+            w[i] = 0.5 - 0.5 * Math.cos(2.0 * Math.PI * i / (size - 1));
+        }
+        return w;
+    }
+
+    /**
+     * Redukcja liczby punktów (do wykresu)
+     */
+    private List<FFTResultDto.Point> reducePoints(List<FFTResultDto.Point> points) {
+        if (points.size() <= MAX_POINTS) return points;
+        int step = points.size() / MAX_POINTS;
+        List<FFTResultDto.Point> reduced = new ArrayList<>(MAX_POINTS);
+        for (int i = 0; i < points.size(); i += step) {
+            reduced.add(points.get(i));
+        }
+        return reduced;
     }
 }

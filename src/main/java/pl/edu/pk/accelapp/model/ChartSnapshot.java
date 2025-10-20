@@ -29,4 +29,5 @@ public class ChartSnapshot {
     @ManyToOne
     @JoinColumn(name = "file_id")
     private UploadedFile uploadedFile;
+
 }

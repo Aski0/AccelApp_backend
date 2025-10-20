@@ -1,18 +1,31 @@
 package pl.edu.pk.accelapp.dto;
 
-public class ChartSnapshotDto {
-    private Long fileId;
-    private String name;
-    private String type; // 'fft' lub 'range'
-    private String base64Image;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import pl.edu.pk.accelapp.model.ChartSnapshot;
 
-    // getters & setters
-    public Long getFileId() { return fileId; }
-    public void setFileId(Long fileId) { this.fileId = fileId; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    public String getBase64Image() { return base64Image; }
-    public void setBase64Image(String base64Image) { this.base64Image = base64Image; }
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChartSnapshotDto {
+    private Long id;           // id wykresu
+    private String name;       // nazwa pliku
+    private String type;       // 'fft' lub 'range'
+    private String filePath;   // ścieżka do pliku na dysku
+    private Long fileId;       // id pliku nadrzędnego
+    private String base64Image; // opcjonalnie, tylko przy zapisie/odczycie Base64
+
+    public static ChartSnapshotDto fromEntity(ChartSnapshot snapshot) {
+        return new ChartSnapshotDto(
+                snapshot.getId(),
+                snapshot.getName(),
+                snapshot.getType(),
+                snapshot.getFilePath(),
+                snapshot.getUploadedFile() != null ? snapshot.getUploadedFile().getId() : null,
+                null // base64Image nie jest ustawiane przy pobieraniu listy
+        );
+    }
 }
