@@ -22,9 +22,6 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Nazwa użytkownika jest wymagana")
-    private String username;
-
     @Email(message = "Podaj poprawny adres e-mail")
     @NotBlank(message ="Email jest wymagany")
     private String email;
