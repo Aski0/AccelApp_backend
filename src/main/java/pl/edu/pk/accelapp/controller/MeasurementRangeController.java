@@ -61,4 +61,5 @@ public class MeasurementRangeController {
         measurementRangeService.deleteRange(rangeId, authentication);
         return ResponseEntity.noContent().build();
     }
+
 }
