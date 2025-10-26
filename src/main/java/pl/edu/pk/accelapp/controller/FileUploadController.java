@@ -37,7 +37,7 @@ public class FileUploadController {
 
             fileUploadService.saveFile(file, user);
 
-            return ResponseEntity.ok("Plik został zapisany dla użytkownika " + user.getId());
+            return ResponseEntity.ok(file.getOriginalFilename());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Błąd: " + e.getMessage());

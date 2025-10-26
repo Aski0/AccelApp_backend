@@ -26,6 +26,7 @@ public interface MeasurementRepository extends JpaRepository<Measurement, Long> 
     Stream<Measurement> streamByUploadedFileId(@Param("fileId") Long fileId);
 
 
+
     @Query(value = """
         SELECT 
             COUNT(*) AS cnt,
