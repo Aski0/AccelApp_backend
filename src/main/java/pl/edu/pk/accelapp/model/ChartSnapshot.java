@@ -27,7 +27,10 @@ public class ChartSnapshot {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @ManyToOne
-    @JoinColumn(name = "file_id")
+    @JoinColumn(name = "file_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private UploadedFile uploadedFile;
+
+
 
 }

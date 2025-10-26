@@ -35,5 +35,9 @@ public class UploadedFile {
     @OneToMany(mappedBy = "uploadedFile", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<MeasurementRange> measurementRanges = new ArrayList<>();
+
+    @OneToMany(mappedBy = "uploadedFile", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChartSnapshot> chartSnapshots = new ArrayList<>();
+
 }
 

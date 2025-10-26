@@ -29,7 +29,7 @@ public class ChartSnapshotController {
         return ResponseEntity.ok(savedDto);
     }
 
-    @GetMapping("/file/{fileId}")
+    @GetMapping("/file/{fileId}/list")
     public ResponseEntity<?> getChartsForFile(@PathVariable Long fileId) {
         try {
             return ResponseEntity.ok(chartSnapshotService.getChartsForFile(fileId));
