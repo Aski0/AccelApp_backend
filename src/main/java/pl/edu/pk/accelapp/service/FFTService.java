@@ -17,11 +17,13 @@ public class FFTService {
 
     private final MeasurementRepository measurementRepository;
 
-    private static final int WINDOW_SIZE = 8192;          // rozmiar okna FFT (np. 8k próbek)
+    private static final int WINDOW_SIZE = 8192;
     private static final double OVERLAP = 0.5;            // 50% nakładania
     private static final double SAMPLE_RATE_FAST = 4800.0;
     private static final double SAMPLE_RATE_SLOW = 10.0;
     private static final int MAX_POINTS = 5000;
+
+
 
     @Transactional(readOnly = true)
     public List<FFTResultDto.Point> computeFFT(Long fileId, String channel) {
@@ -91,15 +93,27 @@ public class FFTService {
                     re = buffer[2 * i];
                     im = buffer[2 * i + 1];
                 }
+
                 double mag = Math.sqrt(re * re + im * im);
+
+                // 🔹 NORMALIZACJA DO AMPLITUDY (peak)
+                if (i == 0) {
+                    // DC
+                    mag = mag / WINDOW_SIZE;
+                } else {
+                    // pozostałe prążki – podwójna amplituda
+                    mag = (2.0 * mag) / WINDOW_SIZE;
+                }
+
                 avgMagnitude[i] += mag;
             }
         }
 
-        // 🔹 uśrednienie po wszystkich oknach
+// uśrednianie po oknach
         for (int i = 0; i < avgMagnitude.length; i++) {
             avgMagnitude[i] /= numWindows;
         }
+
 
         // 🔹 tworzenie listy punktów
         List<FFTResultDto.Point> result = new ArrayList<>(WINDOW_SIZE / 2);
