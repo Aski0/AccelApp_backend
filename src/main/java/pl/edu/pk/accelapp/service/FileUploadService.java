@@ -11,12 +11,15 @@ import pl.edu.pk.accelapp.repository.UploadedFileRepository;
 import javax.sql.DataSource;
 import java.io.*;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Service
 public class FileUploadService {
 
     private final UploadedFileRepository uploadedFileRepository;
     private final DataSource dataSource;
+
+    private static final int MAX_CHANNELS = 8;
 
     public FileUploadService(UploadedFileRepository uploadedFileRepository,
                              DataSource dataSource) {
@@ -34,21 +37,30 @@ public class FileUploadService {
         bulkInsertMeasurements(multipartFile, uploadedFile.getId());
     }
 
-    private static final int MAX_CHANNELS = 8;
-
     private void bulkInsertMeasurements(MultipartFile multipartFile, Long uploadedFileId) throws Exception {
 
-        File tempInput = File.createTempFile("upload-", ".txt");
+        // surowy upload → tymczasowy plik
+        File tempInput = File.createTempFile("upload-", ".tmp");
         try (FileOutputStream fos = new FileOutputStream(tempInput)) {
             fos.write(multipartFile.getBytes());
         }
 
         File tempCsv = File.createTempFile("upload-csv-", ".csv");
 
+        // wykrycie typu pliku po rozszerzeniu
+        String originalName = multipartFile.getOriginalFilename();
+        String lowerName = originalName != null ? originalName.toLowerCase(Locale.ROOT) : "";
+        boolean isCsv = lowerName.endsWith(".csv");
+
+        // TXT/ASC:  separator = TAB, liczby z przecinkiem (0,123)
+        // CSV:      separator = ',', liczby już z kropką (0.123)
+        String sep = isCsv ? "," : "\t";
+        boolean decimalComma = !isCsv; // tylko dla txt/asc zamieniamy ',' -> '.'
+
         try (BufferedReader br = new BufferedReader(new FileReader(tempInput));
              FileWriter fw = new FileWriter(tempCsv)) {
 
-            // Generujemy nagłówek time + 8 kanałów
+            // nagłówek do COPY – stały
             fw.write("time,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,uploaded_file_id\n");
 
             String line;
@@ -56,32 +68,46 @@ public class FileUploadService {
 
             while ((line = br.readLine()) != null) {
 
+                line = line.trim();
+                if (line.isEmpty()) {
+                    continue;
+                }
+
+                // pierwsza linia – nagłówek pliku użytkownika → pomijamy
                 if (firstLine) {
                     firstLine = false;
                     continue;
                 }
 
-                line = line.trim();
-                if (line.isEmpty()) continue;
-
-                String[] cols = line.split("\t");
-                if (cols.length < 1) continue; // musi być chociaż time
+                // rozbij po separatorze
+                String[] cols = line.split(sep, -1); // -1 → zachowuje puste kolumny
+                if (cols.length < 1) {
+                    continue; // musi być przynajmniej czas
+                }
 
                 StringBuilder sb = new StringBuilder();
 
                 // TIME
-                sb.append(cols[0].replace(",", ".")).append(",");
+                String timeRaw = cols[0].trim();
+                String timeNorm = normalizeNumber(timeRaw, decimalComma);
+                sb.append(timeNorm).append(",");
 
-                // kanały (od cols[1] do cols[x])
+                // kanały: mapujemy kolejne kolumny na ch1..ch8
+                // dla CSV z przykładu:
+                //  time,ox,oy,oz
+                //  → ch1 = ox, ch2 = oy, ch3 = oz
                 int available = Math.min(MAX_CHANNELS, cols.length - 1);
 
                 for (int i = 0; i < MAX_CHANNELS; i++) {
                     if (i < available) {
-                        sb.append(cols[1 + i].replace(",", "."));
+                        String raw = cols[1 + i].trim();
+                        String norm = normalizeNumber(raw, decimalComma);
+                        sb.append(norm);
                     }
                     sb.append(",");
                 }
 
+                // uploaded_file_id
                 sb.append(uploadedFileId).append("\n");
                 fw.write(sb.toString());
             }
@@ -100,5 +126,20 @@ public class FileUploadService {
 
         tempInput.delete();
         tempCsv.delete();
+    }
+
+    /**
+     * Normalizuje zapis liczby:
+     *  - jeśli decimalComma == true, zamienia przecinek na kropkę
+     *  - jeśli pusty string → zostawiamy pusty (NULL w COPY)
+     */
+    private String normalizeNumber(String raw, boolean decimalComma) {
+        if (raw == null) return "";
+        raw = raw.trim();
+        if (raw.isEmpty()) return "";
+        if (decimalComma) {
+            return raw.replace(",", ".");
+        }
+        return raw;
     }
 }

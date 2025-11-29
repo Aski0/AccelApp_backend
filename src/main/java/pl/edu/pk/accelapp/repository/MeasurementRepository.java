@@ -6,26 +6,38 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pl.edu.pk.accelapp.model.Measurement;
-import pl.edu.pk.accelapp.model.UploadedFile;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface MeasurementRepository extends JpaRepository<Measurement, Long> {
+
+    // ───────────── Podstawowe zapytania ─────────────
+
+    // Bez sortowania – jak potrzebujesz "po prostu listy"
     List<Measurement> findByUploadedFileId(Long fileId);
-    Page<Measurement> findByUploadedFileId(Long fileId, Pageable pageable);
+
+    // Posortowane po czasie – używaj tego do overview / zakresów
+    List<Measurement> findByUploadedFileIdOrderByTimeAsc(Long fileId);
+
+    Page<Measurement> findByUploadedFileIdOrderByTimeAsc(Long fileId, Pageable pageable);
 
     long countByUploadedFileId(Long fileId);
 
-
+    // min/max time – może zostać jak jest, bo to prosta agregacja
     @Query("SELECT MIN(m.time), MAX(m.time) FROM Measurement m WHERE m.uploadedFile.id = :fileId")
     Object[] findMinAndMaxTimeByFileId(@Param("fileId") Long fileId);
 
-    @Query("SELECT m FROM Measurement m WHERE m.uploadedFile.id = :fileId")
+    // Stream – DOKŁADAMY sortowanie po czasie
+    @Query("SELECT m FROM Measurement m WHERE m.uploadedFile.id = :fileId ORDER BY m.time ASC")
     Stream<Measurement> streamByUploadedFileId(@Param("fileId") Long fileId);
 
 
+    // ───────────── Statystyki dla dynamicznych kanałów ch1..ch8 ─────────────
+    //
+    // - OX/OY/OZ wyrzucamy całkowicie
+    // - dla ch1..ch8 mamy: count, min, max, avg, stddev, rms, peak-to-peak, variance, median, p05, p95
+    // - NULL-e nie psują statystyk (agg funkcje Postgresa je ignorują)
 
     @Query(value = """
         SELECT 
@@ -58,32 +70,50 @@ public interface MeasurementRepository extends JpaRepository<Measurement, Long> 
             PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch3) AS p05_ch3,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch3) AS p95_ch3,
 
-            -- OX
-            MIN(ox), MAX(ox), AVG(ox), STDDEV_POP(ox),
-            SQRT(AVG(ox * ox)) AS rms_ox,
-            (MAX(ox) - MIN(ox)) AS peak_to_peak_ox,
-            VAR_POP(ox) AS variance_ox,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ox) AS median_ox,
-            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ox) AS p05_ox,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ox) AS p95_ox,
+            -- CH4
+            MIN(ch4), MAX(ch4), AVG(ch4), STDDEV_POP(ch4),
+            SQRT(AVG(ch4 * ch4)) AS rms_ch4,
+            (MAX(ch4) - MIN(ch4)) AS peak_to_peak_ch4,
+            VAR_POP(ch4) AS variance_ch4,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ch4) AS median_ch4,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch4) AS p05_ch4,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch4) AS p95_ch4,
 
-            -- OY
-            MIN(oy), MAX(oy), AVG(oy), STDDEV_POP(oy),
-            SQRT(AVG(oy * oy)) AS rms_oy,
-            (MAX(oy) - MIN(oy)) AS peak_to_peak_oy,
-            VAR_POP(oy) AS variance_oy,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY oy) AS median_oy,
-            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY oy) AS p05_oy,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY oy) AS p95_oy,
+            -- CH5
+            MIN(ch5), MAX(ch5), AVG(ch5), STDDEV_POP(ch5),
+            SQRT(AVG(ch5 * ch5)) AS rms_ch5,
+            (MAX(ch5) - MIN(ch5)) AS peak_to_peak_ch5,
+            VAR_POP(ch5) AS variance_ch5,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ch5) AS median_ch5,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch5) AS p05_ch5,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch5) AS p95_ch5,
 
-            -- OZ
-            MIN(oz), MAX(oz), AVG(oz), STDDEV_POP(oz),
-            SQRT(AVG(oz * oz)) AS rms_oz,
-            (MAX(oz) - MIN(oz)) AS peak_to_peak_oz,
-            VAR_POP(oz) AS variance_oz,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY oz) AS median_oz,
-            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY oz) AS p05_oz,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY oz) AS p95_oz
+            -- CH6
+            MIN(ch6), MAX(ch6), AVG(ch6), STDDEV_POP(ch6),
+            SQRT(AVG(ch6 * ch6)) AS rms_ch6,
+            (MAX(ch6) - MIN(ch6)) AS peak_to_peak_ch6,
+            VAR_POP(ch6) AS variance_ch6,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ch6) AS median_ch6,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch6) AS p05_ch6,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch6) AS p95_ch6,
+
+            -- CH7
+            MIN(ch7), MAX(ch7), AVG(ch7), STDDEV_POP(ch7),
+            SQRT(AVG(ch7 * ch7)) AS rms_ch7,
+            (MAX(ch7) - MIN(ch7)) AS peak_to_peak_ch7,
+            VAR_POP(ch7) AS variance_ch7,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ch7) AS median_ch7,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch7) AS p05_ch7,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch7) AS p95_ch7,
+
+            -- CH8
+            MIN(ch8), MAX(ch8), AVG(ch8), STDDEV_POP(ch8),
+            SQRT(AVG(ch8 * ch8)) AS rms_ch8,
+            (MAX(ch8) - MIN(ch8)) AS peak_to_peak_ch8,
+            VAR_POP(ch8) AS variance_ch8,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ch8) AS median_ch8,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY ch8) AS p05_ch8,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ch8) AS p95_ch8
 
         FROM measurements
         WHERE uploaded_file_id = :fileId
