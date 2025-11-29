@@ -23,23 +23,28 @@ public class FFTService {
     private static final double SAMPLE_RATE_SLOW = 10.0;
     private static final int MAX_POINTS = 5000;
 
-
-
     @Transactional(readOnly = true)
     public List<FFTResultDto.Point> computeFFT(Long fileId, String channel) {
+        if (channel == null || channel.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        String normalizedChannel = normalizeChannelName(channel);
+
         List<Double> signal = new ArrayList<>();
 
         // 🔹 wczytanie danych z bazy
         try (Stream<Measurement> stream = measurementRepository.streamByUploadedFileId(fileId)) {
-            stream.forEach(m -> signal.add(getChannelValue(m, channel)));
+            stream.forEach(m -> signal.add(getChannelValue(m, normalizedChannel)));
         }
 
         if (signal.size() < WINDOW_SIZE) {
             return Collections.emptyList();
         }
 
-        double sampleRate = switch (channel.toLowerCase()) {
+        double sampleRate = switch (normalizedChannel) {
             case "ch1", "ch2", "ch3" -> SAMPLE_RATE_FAST;
+            case "ch4", "ch5", "ch6", "ch7", "ch8" -> SAMPLE_RATE_SLOW;
             default -> SAMPLE_RATE_SLOW;
         };
 
@@ -50,16 +55,34 @@ public class FFTService {
         return reducePoints(averaged);
     }
 
+    /**
+     * Normalizacja nazwy kanału:
+     * "ch1" / "CH1" / "1" -> "ch1"
+     */
+    private String normalizeChannelName(String channel) {
+        String ch = channel.trim().toLowerCase();
+        if (!ch.startsWith("ch")) {
+            ch = "ch" + ch;
+        }
+        return ch;
+    }
+
     private double getChannelValue(Measurement m, String channel) {
-        return switch (channel.toLowerCase()) {
-            case "ox" -> m.getOx();
-            case "oy" -> m.getOy();
-            case "oz" -> m.getOz();
-            case "ch1" -> m.getCh1();
-            case "ch2" -> m.getCh2();
-            case "ch3" -> m.getCh3();
+        return switch (channel) {
+            case "ch1" -> safe(m.getCh1());
+            case "ch2" -> safe(m.getCh2());
+            case "ch3" -> safe(m.getCh3());
+            case "ch4" -> safe(m.getCh4());
+            case "ch5" -> safe(m.getCh5());
+            case "ch6" -> safe(m.getCh6());
+            case "ch7" -> safe(m.getCh7());
+            case "ch8" -> safe(m.getCh8());
             default -> 0.0;
         };
+    }
+
+    private double safe(Double v) {
+        return v != null ? v : 0.0;
     }
 
     /**
@@ -67,7 +90,15 @@ public class FFTService {
      */
     private List<FFTResultDto.Point> computeAveragedFFT(List<Double> signal, double sampleRate) {
         int hopSize = (int) (WINDOW_SIZE * (1.0 - OVERLAP)); // krok przesuwania okna
-        int numWindows = (signal.size() - WINDOW_SIZE) / hopSize;
+
+        if (signal.size() < WINDOW_SIZE || hopSize <= 0) {
+            return Collections.emptyList();
+        }
+
+        int numWindows = 1 + (signal.size() - WINDOW_SIZE) / hopSize;
+        if (numWindows <= 0) {
+            return Collections.emptyList();
+        }
 
         double[] window = hanningWindow(WINDOW_SIZE);
         double[] avgMagnitude = new double[WINDOW_SIZE / 2];
@@ -109,11 +140,10 @@ public class FFTService {
             }
         }
 
-// uśrednianie po oknach
+        // 🔹 uśrednianie po oknach
         for (int i = 0; i < avgMagnitude.length; i++) {
             avgMagnitude[i] /= numWindows;
         }
-
 
         // 🔹 tworzenie listy punktów
         List<FFTResultDto.Point> result = new ArrayList<>(WINDOW_SIZE / 2);

@@ -34,45 +34,62 @@ public class FileUploadService {
         bulkInsertMeasurements(multipartFile, uploadedFile.getId());
     }
 
+    private static final int MAX_CHANNELS = 8;
 
     private void bulkInsertMeasurements(MultipartFile multipartFile, Long uploadedFileId) throws Exception {
+
         File tempInput = File.createTempFile("upload-", ".txt");
         try (FileOutputStream fos = new FileOutputStream(tempInput)) {
             fos.write(multipartFile.getBytes());
         }
 
         File tempCsv = File.createTempFile("upload-csv-", ".csv");
+
         try (BufferedReader br = new BufferedReader(new FileReader(tempInput));
              FileWriter fw = new FileWriter(tempCsv)) {
 
-            fw.write("time,ox,oy,oz,ch1,ch2,ch3,uploaded_file_id\n");
+            // Generujemy nagłówek time + 8 kanałów
+            fw.write("time,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,uploaded_file_id\n");
 
             String line;
             boolean firstLine = true;
+
             while ((line = br.readLine()) != null) {
+
                 if (firstLine) {
                     firstLine = false;
                     continue;
                 }
 
-                String[] cols = line.split("\t");
-                if (cols.length < 7) continue;
+                line = line.trim();
+                if (line.isEmpty()) continue;
 
-                fw.write(
-                        cols[0].replace(",", ".") + "," +
-                                cols[1].replace(",", ".") + "," +
-                                cols[2].replace(",", ".") + "," +
-                                cols[3].replace(",", ".") + "," +
-                                cols[4].replace(",", ".") + "," +
-                                cols[5].replace(",", ".") + "," +
-                                cols[6].replace(",", ".") + "," +
-                                uploadedFileId + "\n"
-                );
+                String[] cols = line.split("\t");
+                if (cols.length < 1) continue; // musi być chociaż time
+
+                StringBuilder sb = new StringBuilder();
+
+                // TIME
+                sb.append(cols[0].replace(",", ".")).append(",");
+
+                // kanały (od cols[1] do cols[x])
+                int available = Math.min(MAX_CHANNELS, cols.length - 1);
+
+                for (int i = 0; i < MAX_CHANNELS; i++) {
+                    if (i < available) {
+                        sb.append(cols[1 + i].replace(",", "."));
+                    }
+                    sb.append(",");
+                }
+
+                sb.append(uploadedFileId).append("\n");
+                fw.write(sb.toString());
             }
         }
 
-        String sql = "COPY measurements(time, ox, oy, oz, ch1, ch2, ch3, uploaded_file_id) " +
-                "FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ',')";
+        String sql =
+                "COPY measurements(time, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, uploaded_file_id) " +
+                        "FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ',')";
 
         try (var connection = dataSource.getConnection();
              var reader = new FileReader(tempCsv)) {

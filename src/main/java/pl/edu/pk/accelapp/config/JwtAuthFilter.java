@@ -65,7 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-                    System.out.println("✅ Authentication ustawiona! Użytkownik: " + userEmail);
+                    System.out.println("Authenticated!: " + userEmail);
                 }
             }
         } catch (Exception e) {

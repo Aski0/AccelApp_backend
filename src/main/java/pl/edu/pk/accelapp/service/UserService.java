@@ -36,9 +36,9 @@ public class UserService implements UserDetailsService {
 
     public String login(LoginDto dto){
         User user = userRepository.findByEmail(dto.getEmail())
-                .orElseThrow(()-> new UsernameNotFoundException("Nie znaleziono użytkownika"));
+                .orElseThrow(()-> new UsernameNotFoundException("User not found"));
         if(!passwordEncoder.matches(dto.getPassword(),user.getPassword())){
-            throw new BadCredentialsException("Nieprawidłowe dane logowania");
+            throw new BadCredentialsException("Valid login or password");
         }
         return jwtUtil.generateToken(user);
     }
@@ -53,7 +53,7 @@ public class UserService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(()-> new UsernameNotFoundException("Nie znaleziono użytkownika: "+ email));
+                .orElseThrow(()-> new UsernameNotFoundException("User not found: "+ email));
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),

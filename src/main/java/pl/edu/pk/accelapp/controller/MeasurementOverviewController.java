@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import pl.edu.pk.accelapp.dto.OverviewBlockDto;
 import pl.edu.pk.accelapp.service.MeasurementOverviewService;
-import pl.edu.pk.accelapp.service.MeasurementOverviewService.OverviewBlock;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ public class MeasurementOverviewController {
             Authentication authentication
     ) {
         try {
-            List<OverviewBlock> blocks = overviewService.getOverview(fileId, authentication, blockSize);
+            List<OverviewBlockDto> blocks = overviewService.getOverview(fileId, authentication, blockSize);
             return ResponseEntity.ok(blocks);
         } catch (RuntimeException ex) {
             if (ex.getMessage().contains("Access denied")) {
