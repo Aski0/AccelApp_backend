@@ -19,7 +19,7 @@ public class FFTService {
 
     private static final int WINDOW_SIZE = 8192;
     private static final double OVERLAP = 0.5;            // 50% nakładania
-    private static final double SAMPLE_RATE_FAST = 4800.0;
+    private static final double SAMPLE_RATE_FAST = 9600.0;
     private static final double SAMPLE_RATE_SLOW = 10.0;
     private static final int MAX_POINTS = 5000;
 
@@ -32,8 +32,6 @@ public class FFTService {
         String normalizedChannel = normalizeChannelName(channel);
 
         List<Double> signal = new ArrayList<>();
-
-        // 🔹 wczytanie danych z bazy
         try (Stream<Measurement> stream = measurementRepository.streamByUploadedFileId(fileId)) {
             stream.forEach(m -> signal.add(getChannelValue(m, normalizedChannel)));
         }
@@ -88,10 +86,19 @@ public class FFTService {
     /**
      * Catman Easy AP style FFT averaging (STFT z nakładaniem + okno Hanninga)
      */
+    /**
+     * FFT jak w diagnostyce drgań (Catman-style):
+     * - FFT 8192
+     * - Overlap 50%
+     * - Okno Hamminga
+     * - Linear averaging
+     * - Widmo amplitudowe RMS
+     */
     private List<FFTResultDto.Point> computeAveragedFFT(List<Double> signal, double sampleRate) {
-        int hopSize = (int) (WINDOW_SIZE * (1.0 - OVERLAP)); // krok przesuwania okna
 
-        if (signal.size() < WINDOW_SIZE || hopSize <= 0) {
+        int hopSize = WINDOW_SIZE / 2; // 50% overlap
+
+        if (signal.size() < WINDOW_SIZE) {
             return Collections.emptyList();
         }
 
@@ -100,24 +107,28 @@ public class FFTService {
             return Collections.emptyList();
         }
 
-        double[] window = hanningWindow(WINDOW_SIZE);
+        double[] window = hammingWindow(WINDOW_SIZE);
         double[] avgMagnitude = new double[WINDOW_SIZE / 2];
 
         DoubleFFT_1D fft = new DoubleFFT_1D(WINDOW_SIZE);
         double[] buffer = new double[WINDOW_SIZE];
 
-        // 🔹 przechodzimy po oknach
         for (int w = 0; w < numWindows; w++) {
             int offset = w * hopSize;
+
+            // 🔹 okno czasowe
             for (int i = 0; i < WINDOW_SIZE; i++) {
                 buffer[i] = signal.get(offset + i) * window[i];
             }
 
+            // 🔹 FFT
             fft.realForward(buffer);
 
+            // 🔹 widmo jednostronne
             for (int i = 0; i < WINDOW_SIZE / 2; i++) {
+
                 double re, im;
-                if (i == 0) {
+                if (i == 0) {           // DC
                     re = buffer[0];
                     im = 0.0;
                 } else {
@@ -127,25 +138,26 @@ public class FFTService {
 
                 double mag = Math.sqrt(re * re + im * im);
 
-                // 🔹 NORMALIZACJA DO AMPLITUDY (peak)
+                // 🔹 normalizacja amplitudy (peak)
                 if (i == 0) {
-                    // DC
                     mag = mag / WINDOW_SIZE;
                 } else {
-                    // pozostałe prążki – podwójna amplituda
                     mag = (2.0 * mag) / WINDOW_SIZE;
                 }
+
+                // 🔹 Peak → RMS (Catman)
+                mag /= Math.sqrt(2.0);
 
                 avgMagnitude[i] += mag;
             }
         }
 
-        // 🔹 uśrednianie po oknach
+        // 🔹 uśrednianie liniowe
         for (int i = 0; i < avgMagnitude.length; i++) {
             avgMagnitude[i] /= numWindows;
         }
 
-        // 🔹 tworzenie listy punktów
+        // 🔹 wynik (częstotliwość + amplituda RMS)
         List<FFTResultDto.Point> result = new ArrayList<>(WINDOW_SIZE / 2);
         for (int i = 0; i < WINDOW_SIZE / 2; i++) {
             double freq = i * sampleRate / WINDOW_SIZE;
@@ -155,13 +167,14 @@ public class FFTService {
         return result;
     }
 
+
     /**
      * Okno Hanninga (tłumienie przecieków widmowych)
      */
-    private double[] hanningWindow(int size) {
+    private double[] hammingWindow(int size) {
         double[] w = new double[size];
         for (int i = 0; i < size; i++) {
-            w[i] = 0.5 - 0.5 * Math.cos(2.0 * Math.PI * i / (size - 1));
+            w[i] = 0.54 - 0.46 * Math.cos(2.0 * Math.PI * i / (size - 1));
         }
         return w;
     }

@@ -33,7 +33,6 @@ public class FileUploadService {
         uploadedFile.setUploadedAt(LocalDateTime.now());
         uploadedFile.setUser(user);
         uploadedFile = uploadedFileRepository.save(uploadedFile);
-
         bulkInsertMeasurements(multipartFile, uploadedFile.getId());
     }
 
@@ -97,7 +96,6 @@ public class FileUploadService {
                 //  time,ox,oy,oz
                 //  → ch1 = ox, ch2 = oy, ch3 = oz
                 int available = Math.min(MAX_CHANNELS, cols.length - 1);
-
                 for (int i = 0; i < MAX_CHANNELS; i++) {
                     if (i < available) {
                         String raw = cols[1 + i].trim();
